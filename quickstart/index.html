@@ -110,13 +110,209 @@
                 <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
     <ul class="nav bs-sidenav">
     
+        <li class="main active"><a href="#background">Background:</a></li>
+        
+    
+        <li class="main "><a href="#structure">Structure:</a></li>
+        
+    
+        <li class="main "><a href="#initialization">Initialization</a></li>
+        
+    
+        <li class="main "><a href="#exposing-resources">Exposing Resources:</a></li>
+        
+            <li><a href="#metadata-inheritance">Metadata Inheritance:</a></li>
+        
+    
+        <li class="main "><a href="#customizing-a-resource-behavior">Customizing a Resource Behavior:</a></li>
+        
+            <li><a href="#restlist">RestList</a></li>
+        
+    
     </ul>
 </div></div>
                 <div class="col-md-9" role="main">
 
+<h2 id="background">Background:</h2>
+<p>This example use the basic KeystoneJS generator structure configured to support a blog.<br />
+The main resource our blog use is the Post, we will expose this resource via REST.</p>
+<p>The file are available <a href="https://github.com/shlomiassaf/resty-stone/tree/master/example">here</a></p>
+<h2 id="structure">Structure:</h2>
+<p>Consider the current directory level as the root of your KeystoneJS project.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Type</th>
+<th>Desc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>./keystone.js</code></td>
+<td>File</td>
+<td>Exists in your project, modified to init resty-store.</td>
+</tr>
+<tr>
+<td><code>./routes</code></td>
+<td>Folder</td>
+<td>Exists in your project.</td>
+</tr>
+<tr>
+<td><code>./routes/api</code></td>
+<td>Folder</td>
+<td>Does not exist, please create. Holds all metadata for exposed <strong>Resources</strong></td>
+</tr>
+<tr>
+<td><code>./routes/api/Post.js</code></td>
+<td>File</td>
+<td>Does not exist, please create. Defines Post resource metadata</td>
+</tr>
+</tbody>
+</table>
+<h2 id="initialization">Initialization</h2>
+<p><code>resty-stone</code> needs to start before KeystoneJS starts. (<strong>keystone.start();</strong>)<br />
+Starting first provides the ability to automatically register all routes against resources and provide essential services on top of KeystoneJS.</p>
+<p>Defining <code>resty-stone</code> settings is done the same way as defining KeystoneJS settings.</p>
+<p>Take a look at <code>./keystone.js</code>, the only change is:<br />
+<strong><em>Replacing:</em></strong>  </p>
+<pre><code>keystone.start();
+</code></pre>
+
+<p><strong>With</strong>:  </p>
+<pre><code>var restyStone = require(&quot;resty-stone&quot;);
+keystone.set('resty api base address', &quot;/api&quot;); // you can omit this line, it is the same as the default and here for demo only.
+keystone.set('resty meta location', &quot;./routes/api&quot;); // provide the relative path from your project's root, to your Resource metadata folder. 
+keystone.start(restyStone.start()); // you can supply 'event' to restyStone.start(), it wil propagate.
+</code></pre>
+
 <blockquote>
-<p>Under construction, To be continued...</p>
+<p><strong>NOTE</strong>:<br />
+It is also possible execute <code>restyStone.start()</code> and <code>keystone.start()</code> separately, as long as <code>restyStone.start()</code> comes 1st.
+Note that this might break future behavior as <code>resty-stone</code> might wrap certain KeystoneJS events.</p>
 </blockquote>
+<p><strong>This is it, the API is ready to lunch.</strong><br />
+If you lunch it now you wont be able to access any resource, we did not setup metadata for <strong>Resources</strong> yet.</p>
+<h2 id="exposing-resources">Exposing Resources:</h2>
+<p>Each List model in KeystoneJS is not exposed by default.
+To expose a List model we need to create metadata according to our business rules.</p>
+<p>There are 2 levels for a Resource Metadata:</p>
+<ol>
+<li>Profile</li>
+<li>Profile Metadata for the resource.</li>
+</ol>
+<p>So, A Resource Metadata is:</p>
+<ul>
+<li><strong>A File</strong>, that:  </li>
+<li><strong>Defines a NodeJS module</strong>, that:  </li>
+<li><strong>Exports properties</strong>, that are:  </li>
+<li><strong>Resource Metadata Profile</strong> for a specific resource under a specific profile.</li>
+</ul>
+<blockquote>
+<p><strong>NOTE:</strong><br />
+The file name must be the same as the name used to register its corresponding List model, case sensitive.<br />
+For example, the file name should be the <strong>bold</strong> part from: var Post = new keystone.List(<strong>'Post'</strong>, {});</p>
+</blockquote>
+<p>Currently there are only 2 profiles:</p>
+<p>1) default<br />
+2) isAdmin</p>
+<p>Take a look at <code>./routes/api/Post.js</code> for an example.</p>
+<blockquote>
+<p><strong>NOTES:</strong>
+- There is a 3rd missing profile, a logged user that is not an admin, it will be added soon.
+- These are the only profiles, at least until KeystoneJS supports multiple profiles.
+- Ignoring one of the profiles in your Resource Metadata modules will result in a <code>resty-stone</code> default module which is a deny all module.</p>
+</blockquote>
+<h3 id="metadata-inheritance">Metadata Inheritance:</h3>
+<p>Sometimes, most of the difference between profiles is minor.<br />
+In such cases, add an "__extends__" property to the profile you wish to extend and set the value to the name of the parent profile. </p>
+<pre><code>module.exports.default = {
+    &quot;httpMethods&quot;: &quot;get&quot;,
+     &quot;columns&quot;: {
+            &quot;visible&quot;: [
+                &quot;title&quot;
+            ]
+     }
+}
+
+module.exports.isAdmin = {
+    &quot;__extends__&quot;: &quot;default&quot;,
+
+    &quot;httpMethods&quot;: &quot;get,post,put,delete&quot;,
+    &quot;httpGroupMethods&quot;: true,                 // true will result in duplicating httpMethods to httpGroupMethods    
+}
+</code></pre>
+
+<p>In the example above, <strong>isAdmin</strong> has the same output structure as <strong>default</strong>, they both also accept 'get' HTTP VERBS.
+However, isAdmin accepts post, put and delete HTTP VERBS.</p>
+<blockquote>
+<p><strong>NOTE</strong>:<br />
+Extending a profile currently support first level properties, deeper levels are not supported.<br />
+For example, extending "columns-&gt;visible" only will cause "columns-&gt;no_fileds" to be empty, it will not inherit the parents "columns-&gt;no_fileds" as it is 2nd level.</p>
+</blockquote>
+<h2 id="customizing-a-resource-behavior">Customizing a Resource Behavior:</h2>
+<p>Out of the box, <code>resty-stone</code> has a built-in generic resource behavior module that supports 4 HTTP VERBS (GET, POST, PUT, DELETE).
+You might find it more then enough for your needs.
+However if you want to more control over your resources, no problem.</p>
+<p>It is very easy to customize a Resource behavior, customization is stacked from 3 layers:</p>
+<ol>
+<li>Resource or group of resources.  </li>
+<li>Profile.  </li>
+<li>HTTP VERB (GET, POST, PUT, DELETE, custom rpc, etc...).</li>
+<li>Serialization (Transformation)</li>
+</ol>
+<p>Layers 1 &amp; 2 are set in <strong>Resource Metadata Profile</strong>.<br />
+Layer 3 &amp; 4 are functions implemented on an instance of a <code>resty-stone</code> class called <code>RestList</code>.</p>
+<p>By assigning a <code>RestList</code> to a profile we define the <strong>Resource Handler</strong> for a Resource.<br />
+This assignment is done using the <strong>RestList</strong> property in profile, the value should be an instance of <code>RestList</code>.</p>
+<h3 id="restlist">RestList</h3>
+<p><code>RestList</code> is an object responsible of handling request and transforming the response.  </p>
+<p>Request handling is done using <strong>Function Handlers</strong>, a function handler is a function that receive an <code>express</code> Request<br />
+and a callback and returns a result. The result is sent to a <strong>Transformation handler</strong> and then sent back to the client.</p>
+<p><code>RestList</code> works with 3 types of function handlers:</p>
+<ol>
+<li>HTTP Verb function handlers.  </li>
+<li>RPC function handlers.  </li>
+<li>Transformation handlers</li>
+</ol>
+<h4 id="http-verb-function-handlers">HTTP Verb function handlers</h4>
+<p>Function handlers that compose a REST interface for a Resource.<br />
+Each function handles a HTTP VERBS.  <br />
+Pairing a function handler with a HTTP VERB is done by HTTP VERB name, <code>RestList</code> properties that match HTTP VERBS reference a function handler for that verb.<br />
+All HTTP VERBS are treated as LOWER CASE, this means that <code>RestList.GET = function() {..}</code> will not work.<br />
+The built-in <code>RestList</code> handles HTTP GET, POST, PUT, DELETE.  </p>
+<h4 id="rpc-function-handlers">RPC function handlers</h4>
+<p>RPC, or <code>remote procedure call</code> is the ability to invoke a specific, non REST complaint, operation on a <strong>Resource</strong>.</p>
+<p>To create an RPC simply add a function handler to your custom <code>RestList</code>, the key referencing the new RPC function is the RPC function name.<br />
+To invoke a RPC use add a query string key called action with a value representing the RPC name. </p>
+<p>Example: <code>www.myapi.com/api/Post?action=myRpc</code> will call invoke <code>myRpc</code> on the Post <code>RestList</code>.</p>
+<blockquote>
+<p><strong>WARNING:</strong><br />
+- Due to the nature of RPC, please make sure your are not exposing public methods that are not Resource Handlers!<br />
+- RPC name starting with an underscore (_) is not a valid RPC name, it will never invoke. (e.g: <code>RestList._render</code>)<br />
+- RPC validation comes AFTER Resource VERB validation, this means that an RPC request using HTTP GET for an object with no GET permission will fail.<br />
+- RPC does not care if it was called on a Resource or on a Resource group, this logic should be handled in the Function handler.</p>
+</blockquote>
+<h4 id="transformation-handlers">Transformation handlers</h4>
+<p><code>RestList</code> is also responsible for object serialization, it is not exactly a serialization process but more a transformation process.</p>
+<p>Since KeystoneJS is built on NodeJS &amp; MongoDB, serialization is built in, we only need to transform.</p>
+<p>Transformation is done using the public function <code>_render(req, instance)</code> that gets an <code>express</code> Request and an instance of the resource
+and returns the instance transformed (or not...)<br />
+The built-in <code>RestList</code> simply returns the instance as is, without changing it.</p>
+<p><code>resty-stone</code>'s built-in <code>RestList</code> is used by default for all Resources, unless told otherwise.</p>
+<h4 id="all-together">All Together</h4>
+<p>To customize a <code>RestList</code>:<br />
+- Create a new instance of it (<code>new RestList()</code>)<br />
+- Create or overwrite functions to customize a resource to your desire.<br />
+- Set relevant metadata profiles to reference the new <code>RestList</code></p>
+<p>To sum it up:<br />
+Use <strong>Resource Metadata</strong> to differentiate <strong>Metadata</strong> based on <strong>Resource</strong>.<br />
+Use <strong>Resource Metadata Profile</strong> to differentiate a <strong>Resource</strong> based on <strong>Profiles/Authentication</strong>.<br />
+Use <strong>RestList</strong> to differentiate <strong>Behaviors</strong> based on a <strong>Profile</strong> or a <strong>Resource</strong>.  </p>
+<p>This pattern provides the ability to create custom behaviors for group of resource, specific resources and profiles.<br />
+Combine it with <strong>Function Handlers</strong> &amp; <strong>Transformation Handlers</strong> to achieve fine-grained control over your resources.</p>
+<p>By working with instances of <code>RestList</code> you make sure default behavior is kept for all resource's throughout the API but still customize those places where the business model is different.</p>
+<p><code>RestList</code> also support advanced scenarios where a hierarchy of <code>RestList</code> classes can be built (using prototype inheritance) to support complex business models. </p>
 </div>
             
         </div>
