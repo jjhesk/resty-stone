@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
     <head>
         <meta charset="utf-8">
@@ -119,6 +119,13 @@
         <li class="main "><a href="#initialization">Initialization</a></li>
         
     
+        <li class="main "><a href="#authentication">Authentication:</a></li>
+        
+            <li><a href="#endpoints">Endpoints:</a></li>
+        
+            <li><a href="#authentication-methods">Authentication methods:</a></li>
+        
+    
         <li class="main "><a href="#exposing-resources">Exposing Resources:</a></li>
         
             <li><a href="#metadata-inheritance">Metadata Inheritance:</a></li>
@@ -136,7 +143,6 @@
 <h2 id="background">Background:</h2>
 <p>This example use the basic KeystoneJS generator structure configured to support a blog.<br />
 The main resource our blog use is the Post, we will expose this resource via REST.</p>
-<p>The file are available <a href="https://github.com/shlomiassaf/resty-stone/tree/master/example">here</a></p>
 <h2 id="structure">Structure:</h2>
 <p>Consider the current directory level as the root of your KeystoneJS project.</p>
 <table>
@@ -182,7 +188,8 @@ Starting first provides the ability to automatically register all routes against
 <p><strong>With</strong>:  </p>
 <pre><code>var restyStone = require(&quot;resty-stone&quot;);
 keystone.set('resty api base address', &quot;/api&quot;); // you can omit this line, it is the same as the default and here for demo only.
-keystone.set('resty meta location', &quot;./routes/api&quot;); // provide the relative path from your project's root, to your Resource metadata folder. 
+keystone.set('resty meta location', &quot;./routes/api&quot;); // provide the relative path from your project's root, to your Resource metadata folder.
+ keystone.set('resty auth type', restyStone.AUTH_TYPE.SESSION ); // keep KeystoneJS cookie based session for auth (use in dev only!)
 keystone.start(restyStone.start()); // you can supply 'event' to restyStone.start(), it wil propagate.
 </code></pre>
 
@@ -193,6 +200,53 @@ Note that this might break future behavior as <code>resty-stone</code> might wra
 </blockquote>
 <p><strong>This is it, the API is ready to lunch.</strong><br />
 If you lunch it now you wont be able to access any resource, we did not setup metadata for <strong>Resources</strong> yet.</p>
+<h2 id="authentication">Authentication:</h2>
+<p>resty-stone has a built-in <strong>Basic Auth</strong> token based authentication.<br />
+To enable it:<br />
+  - Set <code>resty auth type</code> to restyStone.AUTH_TYPE.TOKEN<br />
+  - Set <code>resty token header</code> to the header name used for the token.</p>
+<pre><code>keystone.set('resty auth type', restyStone.AUTH_TYPE.TOKEN ); // keep KeystoneJS cookie based session for auth (use in dev only!)
+keystone.set('resty token header', &quot;api-token&quot; );
+</code></pre>
+
+<h3 id="endpoints">Endpoints:</h3>
+<p><strong>Login</strong>:  SERVER/BASE_ADDRESS/auth/login
+<strong>Logout</strong>: SERVER/BASE_ADDRESS/auth/logout</p>
+<p>Example for the server <code>www.example.com</code> with <code>resty api base address</code> set to <code>/api</code>:</p>
+<pre><code>http://www.example.com/api/auth/login
+http://www.example.com/api/auth/logout
+</code></pre>
+
+<blockquote>
+<p>NOTE:<br />
+Don't forget to send the api token to logout requests.</p>
+</blockquote>
+<h3 id="authentication-methods">Authentication methods:</h3>
+<p>You can use <strong>Basic Auth</strong> or simple user object in the request body, formatted as json (identical to keystone login).<br />
+For example, login for username <strong>demo</strong> and pasword <strong>demo-pass</strong>:   </p>
+<h5 id="basic-auth">Basic Auth</h5>
+<pre><code>Authorization: Basic ZGVtbzpkZW1vLXBhc3M
+</code></pre>
+
+<h5 id="request-body">Request body</h5>
+<pre><code>{
+  &quot;email&quot;: &quot;demo&quot;,
+  &quot;password&quot;: &quot;demo-pass&quot;
+}
+
+</code></pre>
+
+<p>A successful authentication will return:</p>
+<pre><code>{
+    &quot;success&quot;: true,
+    &quot;resultType&quot;: &quot;notSet&quot;,
+    &quot;modelType&quot;: &quot;notSet&quot;,
+    &quot;result&quot;: &quot;eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJrZXlzdG9uZS5zaWQiOiJfUzRveUxlRFBPZk1NQ2k2eGI4QVNleDIifQ.Rp6o1ZyvF25Otstf3aXnJjugqM2DSQj2lxhlB8h9qbU&quot;
+}
+</code></pre>
+
+<p>The property <code>success</code> indicates the result status, the property <code>result</code> holds the token.
+You can now use this token in the header of each call to authenticate it.</p>
 <h2 id="exposing-resources">Exposing Resources:</h2>
 <p>Each List model in KeystoneJS is not exposed by default.
 To expose a List model we need to create metadata according to our business rules.</p>
@@ -213,15 +267,34 @@ To expose a List model we need to create metadata according to our business rule
 The file name must be the same as the name used to register its corresponding List model, case sensitive.<br />
 For example, the file name should be the <strong>bold</strong> part from: var Post = new keystone.List(<strong>'Post'</strong>, {});</p>
 </blockquote>
-<p>Currently there are only 2 profiles:</p>
-<p>1) default<br />
-2) isAdmin</p>
+<p>Currently there are 3 profiles:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Desc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>default</td>
+<td>The default profile for not authorized users. (if set, resource is public)</td>
+</tr>
+<tr>
+<td>authorized</td>
+<td>Profile for registered users.</td>
+</tr>
+<tr>
+<td>isAdmin</td>
+<td>Profile for administrator/s</td>
+</tr>
+</tbody>
+</table>
 <p>Take a look at <code>./routes/api/Post.js</code> for an example.</p>
 <blockquote>
 <p><strong>NOTES:</strong>
-- There is a 3rd missing profile, a logged user that is not an admin, it will be added soon.
-- These are the only profiles, at least until KeystoneJS supports multiple profiles.
-- Ignoring one of the profiles in your Resource Metadata modules will result in a <code>resty-stone</code> default module which is a deny all module.</p>
+- These are the only profiles, at least until KeystoneJS supports multiple profiles.<br />
+- Setting a <code>default</code> profile exposes a resource to any request, authorized or not.</p>
 </blockquote>
 <h3 id="metadata-inheritance">Metadata Inheritance:</h3>
 <p>Sometimes, most of the difference between profiles is minor.<br />
